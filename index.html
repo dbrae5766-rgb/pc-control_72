@@ -402,6 +402,9 @@
         let lastY = 0;
         let refreshInterval = null;
         let isConnected = false;
+        let isDragging = false;
+        let lastMouseMoveTime = 0;
+        const MOUSE_THROTTLE = 30; // Send mouse position every 30ms for smooth tracking
 
         function connect() {
             const wsUrl = WEBSOCKET_URL; // Use hardcoded URL
@@ -560,10 +563,8 @@
         document.addEventListener('DOMContentLoaded', function() {
             const screen = document.getElementById('screen');
             
-            // Mouse clicks on screen
-            screen.addEventListener('click', function(e) {
-                if (!isConnected) return;
-
+            // Helper function to get scaled coordinates
+            function getScaledCoords(e) {
                 const rect = screen.getBoundingClientRect();
                 const scaleX = screen.naturalWidth / rect.width;
                 const scaleY = screen.naturalHeight / rect.height;
@@ -571,45 +572,92 @@
                 const x = Math.round((e.clientX - rect.left) * scaleX);
                 const y = Math.round((e.clientY - rect.top) * scaleY);
                 
+                return { x, y };
+            }
+            
+            // Mouse move tracking (like AnyDesk - moves cursor as you hover)
+            screen.addEventListener('mousemove', function(e) {
+                if (!isConnected) return;
+                
+                const now = Date.now();
+                if (now - lastMouseMoveTime < MOUSE_THROTTLE) return; // Throttle to prevent spam
+                lastMouseMoveTime = now;
+                
+                const { x, y } = getScaledCoords(e);
                 lastX = x;
                 lastY = y;
                 
-                sendMouse('click', x, y);
+                sendMouse('move', x, y);
             });
-
-            // Right click on screen
+            
+            // Mouse down (start of click/drag)
+            screen.addEventListener('mousedown', function(e) {
+                if (!isConnected) return;
+                e.preventDefault();
+                
+                isDragging = true;
+                const { x, y } = getScaledCoords(e);
+                lastX = x;
+                lastY = y;
+                
+                // Send mouse down event
+                if (e.button === 0) { // Left button
+                    sendMouse('mousedown', x, y);
+                } else if (e.button === 2) { // Right button
+                    sendMouse('rightmousedown', x, y);
+                }
+            });
+            
+            // Mouse up (end of click/drag)
+            screen.addEventListener('mouseup', function(e) {
+                if (!isConnected) return;
+                e.preventDefault();
+                
+                const { x, y } = getScaledCoords(e);
+                
+                // Send mouse up event
+                if (e.button === 0) { // Left button
+                    sendMouse('mouseup', x, y);
+                } else if (e.button === 2) { // Right button
+                    sendMouse('rightmouseup', x, y);
+                }
+                
+                isDragging = false;
+                setTimeout(refreshScreen, 50);
+            });
+            
+            // Prevent context menu
             screen.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
-                if (!isConnected) return;
-
-                const rect = screen.getBoundingClientRect();
-                const scaleX = screen.naturalWidth / rect.width;
-                const scaleY = screen.naturalHeight / rect.height;
-                
-                const x = Math.round((e.clientX - rect.left) * scaleX);
-                const y = Math.round((e.clientY - rect.top) * scaleY);
-                
-                lastX = x;
-                lastY = y;
-                
-                sendMouse('rightclick', x, y);
             });
-
-            // Double click on screen
+            
+            // Mouse wheel scrolling
+            screen.addEventListener('wheel', function(e) {
+                if (!isConnected) return;
+                e.preventDefault();
+                
+                const { x, y } = getScaledCoords(e);
+                const scrollAmount = Math.round(e.deltaY / 10); // Adjust sensitivity
+                
+                sendMessage({
+                    type: 'mouse',
+                    action: 'scroll',
+                    x: x,
+                    y: y,
+                    amount: -scrollAmount // Negative for natural scrolling
+                });
+                
+                setTimeout(refreshScreen, 50);
+            });
+            
+            // Double click
             screen.addEventListener('dblclick', function(e) {
                 if (!isConnected) return;
-
-                const rect = screen.getBoundingClientRect();
-                const scaleX = screen.naturalWidth / rect.width;
-                const scaleY = screen.naturalHeight / rect.height;
+                e.preventDefault();
                 
-                const x = Math.round((e.clientX - rect.left) * scaleX);
-                const y = Math.round((e.clientY - rect.top) * scaleY);
-                
-                lastX = x;
-                lastY = y;
-                
+                const { x, y } = getScaledCoords(e);
                 sendMouse('doubleclick', x, y);
+                setTimeout(refreshScreen, 50);
             });
 
             // Keyboard shortcuts
