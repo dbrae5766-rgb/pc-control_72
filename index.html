@@ -335,10 +335,6 @@
             <h2>🔗 Connect to Your PC</h2>
             <div id="connectionStatus"></div>
             
-            <label>WebSocket URL</label>
-            <input type="text" id="wsUrl" placeholder="wss://your-ngrok-url.ngrok-free.app" />
-            <p class="help-text">Get this from ngrok: change https:// to wss:// (will be saved)</p>
-            
             <label>Password</label>
             <input type="password" id="password" placeholder="Enter password" value="Canes1232" />
             
@@ -398,28 +394,18 @@
     <div class="toast" id="toast"></div>
 
     <script>
+        // HARDCODED WEBSOCKET URL - Update this if ngrok restarts
+        const WEBSOCKET_URL = 'wss://porticoed-nonhistorical-jazlynn.ngrok-free.dev';
+
         let ws = null;
         let lastX = 0;
         let lastY = 0;
         let refreshInterval = null;
         let isConnected = false;
 
-        // Load saved WebSocket URL on page load
-        window.addEventListener('DOMContentLoaded', function() {
-            const savedUrl = localStorage.getItem('wsUrl');
-            if (savedUrl) {
-                document.getElementById('wsUrl').value = savedUrl;
-            }
-        });
-
         function connect() {
-            const wsUrl = document.getElementById('wsUrl').value.trim();
+            const wsUrl = WEBSOCKET_URL; // Use hardcoded URL
             const password = document.getElementById('password').value;
-
-            if (!wsUrl) {
-                showConnectionStatus('Please enter WebSocket URL', 'error');
-                return;
-            }
 
             if (!password) {
                 showConnectionStatus('Please enter password', 'error');
@@ -483,10 +469,6 @@
         function handleMessage(data) {
             if (data.type === 'auth_success') {
                 isConnected = true;
-                
-                // Save WebSocket URL for next time
-                const wsUrl = document.getElementById('wsUrl').value;
-                localStorage.setItem('wsUrl', wsUrl);
                 
                 document.getElementById('connectionScreen').style.display = 'none';
                 document.getElementById('remoteDesktop').classList.add('active');
@@ -633,10 +615,6 @@
             // Keyboard shortcuts
             document.getElementById('password').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') connect();
-            });
-
-            document.getElementById('wsUrl').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') document.getElementById('password').focus();
             });
 
             document.getElementById('keyboardInput').addEventListener('keypress', function(e) {
