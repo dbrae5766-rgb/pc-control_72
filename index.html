@@ -245,6 +245,32 @@
             display: flex;
         }
 
+        /* Locked Overlay */
+        .locked-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(218, 55, 60, 0.85);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: 600;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .locked-overlay.active {
+            display: flex;
+        }
+
+        .locked-icon {
+            font-size: 48px;
+        }
+
         .spinner {
             width: 40px;
             height: 40px;
@@ -330,6 +356,11 @@
                 <div class="spinner"></div>
                 <span>Loading screen...</span>
             </div>
+            <div class="locked-overlay" id="lockedOverlay">
+                <div class="locked-icon">🔒</div>
+                <div>Host PC is Currently in Use</div>
+                <div style="font-size: 14px; font-weight: normal;">Remote control locked until host is idle</div>
+            </div>
         </div>
     </div>
 
@@ -347,6 +378,7 @@
         let isConnected = false;
         let isDragging = false;
         let lastMouseMoveTime = 0;
+        let isLocked = false;
         const MOUSE_THROTTLE = 16; // ~60Hz mouse tracking for 30 FPS
 
         function connect() {
@@ -429,11 +461,21 @@
                 document.getElementById('screen').src = data.image;
                 document.getElementById('loadingOverlay').classList.remove('active');
             } else if (data.type === 'success') {
-                // Silent success
+                // Silent success - unlock if was locked
+                if (isLocked) {
+                    isLocked = false;
+                    document.getElementById('lockedOverlay').classList.remove('active');
+                }
             } else if (data.type === 'error') {
-                showToast('Error: ' + data.message);
-                if (data.message.includes('Authentication')) {
-                    disconnect();
+                // Check if it's a lock error
+                if (data.locked) {
+                    isLocked = true;
+                    document.getElementById('lockedOverlay').classList.add('active');
+                } else {
+                    showToast('Error: ' + data.message);
+                    if (data.message.includes('Authentication')) {
+                        disconnect();
+                    }
                 }
             }
         }
