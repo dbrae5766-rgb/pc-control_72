@@ -34,16 +34,16 @@
             margin-bottom: 10px;
         }
 
-        .login-box {
+        .connection-box {
             background: white;
             padding: 40px;
             border-radius: 15px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            max-width: 400px;
+            max-width: 500px;
             margin: 100px auto;
         }
 
-        .login-box h2 {
+        .connection-box h2 {
             margin-bottom: 20px;
             color: #333;
         }
@@ -117,9 +117,14 @@
             transform: translateY(0);
         }
 
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         input[type="text"],
-        input[type="password"],
-        textarea {
+        input[type="password"] {
             width: 100%;
             padding: 12px;
             border: 2px solid #ddd;
@@ -129,9 +134,7 @@
             font-family: inherit;
         }
 
-        input[type="text"]:focus,
-        input[type="password"]:focus,
-        textarea:focus {
+        input:focus {
             outline: none;
             border-color: #667eea;
         }
@@ -154,22 +157,55 @@
             color: #721c24;
         }
 
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255,255,255,.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+
+        .connection-status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .connection-status.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .connection-status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .connection-status.connected .dot {
+            background: #28a745;
+            animation: pulse 2s infinite;
+        }
+
+        .connection-status.disconnected .dot {
+            background: #dc3545;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
 
         .refresh-rate {
             margin-bottom: 15px;
+            color: white;
         }
 
         .command-output {
@@ -184,37 +220,63 @@
             white-space: pre-wrap;
             margin-top: 10px;
         }
+
+        .help-text {
+            color: #666;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🖥️ Remote PC Control</h1>
-            <p>Control your computer from anywhere</p>
+            <p>Control your computer from anywhere via WebSocket</p>
         </div>
 
-        <!-- Login Box -->
-        <div class="login-box" id="loginBox">
-            <h2>🔐 Authentication Required</h2>
-            <div id="loginStatus"></div>
-            <input type="password" id="passwordInput" placeholder="Enter password" />
-            <button onclick="login()">Login</button>
+        <!-- Connection Box -->
+        <div class="connection-box" id="connectionBox">
+            <h2>🔗 Connect to Your PC</h2>
+            <div id="connectionStatus"></div>
+            
+            <label>WebSocket URL (from ngrok):</label>
+            <input type="text" id="wsUrl" placeholder="wss://your-ngrok-url.ngrok-free.app" />
+            <p class="help-text">Example: wss://abc123.ngrok-free.app or ws://localhost:8765</p>
+            
+            <label>Password:</label>
+            <input type="password" id="password" placeholder="Enter password" />
+            
+            <button onclick="connect()" id="connectBtn">Connect</button>
         </div>
 
         <!-- Control Panel -->
         <div class="control-panel" id="controlPanel">
             <div class="screen-container">
-                <div class="refresh-rate">
-                    <label style="color: white;">
-                        Auto-refresh:
-                        <select id="refreshRate" onchange="updateRefreshRate()">
-                            <option value="0">Manual</option>
-                            <option value="1000">1 second</option>
-                            <option value="2000" selected>2 seconds</option>
-                            <option value="5000">5 seconds</option>
-                        </select>
-                    </label>
-                    <button onclick="refreshScreen()" style="margin-left: 10px;">🔄 Refresh Now</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div class="connection-status connected" id="statusIndicator">
+                        <span class="dot"></span>
+                        <span>Connected</span>
+                    </div>
+                    <div class="refresh-rate">
+                        <label style="color: white; display: inline;">
+                            Auto-refresh:
+                            <select id="refreshRate" onchange="updateRefreshRate()">
+                                <option value="0">Manual</option>
+                                <option value="1000">1 second</option>
+                                <option value="2000" selected>2 seconds</option>
+                                <option value="5000">5 seconds</option>
+                            </select>
+                        </label>
+                        <button onclick="refreshScreen()" style="margin-left: 10px;">🔄 Refresh</button>
+                    </div>
                 </div>
                 <img id="screen" src="" alt="Screen will appear here" />
             </div>
@@ -226,13 +288,11 @@
                 <div class="control-section">
                     <h3>🖱️ Mouse Controls</h3>
                     <div class="button-group">
-                        <button onclick="sendMouse('click', lastX, lastY)">Left Click</button>
-                        <button onclick="sendMouse('rightclick', lastX, lastY)">Right Click</button>
-                        <button onclick="sendMouse('doubleclick', lastX, lastY)">Double Click</button>
+                        <button onclick="sendMouse('click')">Left Click</button>
+                        <button onclick="sendMouse('rightclick')">Right Click</button>
+                        <button onclick="sendMouse('doubleclick')">Double Click</button>
                     </div>
-                    <p style="margin-top: 10px; color: #666; font-size: 13px;">
-                        💡 Click directly on the screen above to move mouse and perform actions
-                    </p>
+                    <p class="help-text">💡 Click directly on the screen to move mouse and click</p>
                 </div>
 
                 <!-- Keyboard Controls -->
@@ -255,63 +315,133 @@
                     <button onclick="runCommand()">Execute</button>
                     <div id="commandOutput" class="command-output" style="display: none;"></div>
                 </div>
+
+                <div style="text-align: center; margin-top: 20px;">
+                    <button onclick="disconnect()" style="background: #dc3545;">Disconnect</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        let password = '';
+        let ws = null;
         let lastX = 0;
         let lastY = 0;
         let refreshInterval = null;
+        let isConnected = false;
 
-        // Login function
-        function login() {
-            password = document.getElementById('passwordInput').value;
-            
-            fetch('/auth', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: `password=${encodeURIComponent(password)}`
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    document.getElementById('loginBox').style.display = 'none';
-                    document.getElementById('controlPanel').classList.add('active');
-                    refreshScreen();
-                    updateRefreshRate();
-                } else {
-                    showLoginStatus('Invalid password!', 'error');
-                }
-            })
-            .catch(err => {
-                showLoginStatus('Connection error!', 'error');
-            });
-        }
+        function connect() {
+            const wsUrl = document.getElementById('wsUrl').value.trim();
+            const password = document.getElementById('password').value;
 
-        // Show login status
-        function showLoginStatus(message, type) {
-            const status = document.getElementById('loginStatus');
-            status.innerHTML = `<div class="status ${type}">${message}</div>`;
-            setTimeout(() => status.innerHTML = '', 3000);
-        }
+            if (!wsUrl) {
+                showConnectionStatus('Please enter WebSocket URL', 'error');
+                return;
+            }
 
-        // Refresh screen
-        function refreshScreen() {
-            fetch(`/screenshot?password=${encodeURIComponent(password)}`)
-                .then(r => r.json())
-                .then(data => {
-                    if (data.image) {
-                        document.getElementById('screen').src = data.image;
-                    } else if (data.error) {
-                        showStatus('Error: ' + data.error, 'error');
+            if (!password) {
+                showConnectionStatus('Please enter password', 'error');
+                return;
+            }
+
+            showConnectionStatus('Connecting...', 'info');
+            document.getElementById('connectBtn').disabled = true;
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    console.log('WebSocket connected');
+                    // Send authentication
+                    ws.send(JSON.stringify({
+                        type: 'auth',
+                        password: password
+                    }));
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    handleMessage(data);
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    showConnectionStatus('Connection error', 'error');
+                    document.getElementById('connectBtn').disabled = false;
+                };
+
+                ws.onclose = () => {
+                    console.log('WebSocket disconnected');
+                    isConnected = false;
+                    updateConnectionIndicator(false);
+                    showConnectionStatus('Disconnected', 'error');
+                    document.getElementById('connectBtn').disabled = false;
+                    
+                    if (refreshInterval) {
+                        clearInterval(refreshInterval);
                     }
-                })
-                .catch(err => showStatus('Failed to refresh screen', 'error'));
+                };
+
+            } catch (error) {
+                showConnectionStatus('Failed to connect: ' + error.message, 'error');
+                document.getElementById('connectBtn').disabled = false;
+            }
         }
 
-        // Update refresh rate
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                document.getElementById('connectionBox').style.display = 'block';
+                document.getElementById('controlPanel').classList.remove('active');
+            }
+        }
+
+        function handleMessage(data) {
+            if (data.type === 'auth_success') {
+                isConnected = true;
+                document.getElementById('connectionBox').style.display = 'none';
+                document.getElementById('controlPanel').classList.add('active');
+                updateConnectionIndicator(true);
+                showStatus(data.message, 'success');
+                refreshScreen();
+                updateRefreshRate();
+            } else if (data.type === 'screenshot') {
+                document.getElementById('screen').src = data.image;
+            } else if (data.type === 'success') {
+                showStatus(data.message, 'success');
+            } else if (data.type === 'command_result') {
+                const output = document.getElementById('commandOutput');
+                output.style.display = 'block';
+                output.textContent = `${data.output}${data.error}`;
+                showStatus('Command executed', 'success');
+            } else if (data.type === 'error') {
+                showStatus('Error: ' + data.message, 'error');
+            }
+        }
+
+        function updateConnectionIndicator(connected) {
+            const indicator = document.getElementById('statusIndicator');
+            if (connected) {
+                indicator.className = 'connection-status connected';
+                indicator.innerHTML = '<span class="dot"></span><span>Connected</span>';
+            } else {
+                indicator.className = 'connection-status disconnected';
+                indicator.innerHTML = '<span class="dot"></span><span>Disconnected</span>';
+            }
+        }
+
+        function sendMessage(data) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(data));
+            } else {
+                showStatus('Not connected to PC', 'error');
+            }
+        }
+
+        function refreshScreen() {
+            sendMessage({ type: 'screenshot' });
+        }
+
         function updateRefreshRate() {
             if (refreshInterval) clearInterval(refreshInterval);
             
@@ -319,6 +449,58 @@
             if (rate > 0) {
                 refreshInterval = setInterval(refreshScreen, rate);
             }
+        }
+
+        function sendMouse(action) {
+            sendMessage({
+                type: 'mouse',
+                action: action,
+                x: lastX,
+                y: lastY
+            });
+            setTimeout(refreshScreen, 500);
+        }
+
+        function sendText() {
+            const text = document.getElementById('keyboardInput').value;
+            if (!text) return;
+
+            sendMessage({
+                type: 'keyboard',
+                text: text
+            });
+
+            document.getElementById('keyboardInput').value = '';
+            setTimeout(refreshScreen, 500);
+        }
+
+        function sendKey(key) {
+            sendMessage({
+                type: 'keyboard',
+                key: key
+            });
+            setTimeout(refreshScreen, 500);
+        }
+
+        function runCommand() {
+            const command = document.getElementById('commandInput').value;
+            if (!command) return;
+
+            sendMessage({
+                type: 'command',
+                command: command
+            });
+        }
+
+        function showStatus(message, type) {
+            const status = document.getElementById('statusMessage');
+            status.innerHTML = `<div class="status ${type}">${message}</div>`;
+            setTimeout(() => status.innerHTML = '', 3000);
+        }
+
+        function showConnectionStatus(message, type) {
+            const status = document.getElementById('connectionStatus');
+            status.innerHTML = `<div class="status ${type}">${message}</div>`;
         }
 
         // Handle screen clicks
@@ -332,130 +514,30 @@
                 
                 lastX = x;
                 lastY = y;
-                sendMouse('click', x, y);
+                
+                sendMessage({
+                    type: 'mouse',
+                    action: 'click',
+                    x: x,
+                    y: y
+                });
+                
+                setTimeout(refreshScreen, 500);
             });
 
-            // Allow Enter key in password field
-            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') login();
+            // Enter key handlers
+            document.getElementById('password').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') connect();
             });
 
-            // Allow Enter key in keyboard input
             document.getElementById('keyboardInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') sendText();
             });
 
-            // Allow Enter key in command input
             document.getElementById('commandInput').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') runCommand();
             });
         });
-
-        // Send mouse action
-        function sendMouse(action, x, y) {
-            const formData = new FormData();
-            formData.append('password', password);
-            formData.append('action', action);
-            formData.append('x', x);
-            formData.append('y', y);
-
-            fetch('/mouse', {
-                method: 'POST',
-                body: formData
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showStatus(`Mouse ${action} at (${x}, ${y})`, 'success');
-                    setTimeout(refreshScreen, 500);
-                }
-            })
-            .catch(err => showStatus('Mouse action failed', 'error'));
-        }
-
-        // Send text
-        function sendText() {
-            const text = document.getElementById('keyboardInput').value;
-            if (!text) return;
-
-            const formData = new FormData();
-            formData.append('password', password);
-            formData.append('text', text);
-
-            fetch('/keyboard', {
-                method: 'POST',
-                body: formData
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showStatus('Text sent successfully', 'success');
-                    document.getElementById('keyboardInput').value = '';
-                    setTimeout(refreshScreen, 500);
-                }
-            })
-            .catch(err => showStatus('Failed to send text', 'error'));
-        }
-
-        // Send key press
-        function sendKey(key) {
-            const formData = new FormData();
-            formData.append('password', password);
-            formData.append('key', key);
-
-            fetch('/keyboard', {
-                method: 'POST',
-                body: formData
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    showStatus(`Key '${key}' pressed`, 'success');
-                    setTimeout(refreshScreen, 500);
-                }
-            })
-            .catch(err => showStatus('Failed to send key', 'error'));
-        }
-
-        // Run command
-        function runCommand() {
-            const command = document.getElementById('commandInput').value;
-            if (!command) return;
-
-            const formData = new FormData();
-            formData.append('password', password);
-            formData.append('command', command);
-
-            showStatus('Executing command...', 'success');
-
-            fetch('/command', {
-                method: 'POST',
-                body: formData
-            })
-            .then(r => r.json())
-            .then(data => {
-                const output = document.getElementById('commandOutput');
-                output.style.display = 'block';
-                
-                if (data.status === 'success') {
-                    output.textContent = `$ ${command}\n${data.output}${data.error}`;
-                    showStatus('Command executed', 'success');
-                } else {
-                    output.textContent = `Error: ${data.error}`;
-                    showStatus('Command failed', 'error');
-                }
-            })
-            .catch(err => {
-                showStatus('Failed to execute command', 'error');
-            });
-        }
-
-        // Show status message
-        function showStatus(message, type) {
-            const status = document.getElementById('statusMessage');
-            status.innerHTML = `<div class="status ${type}">${message}</div>`;
-            setTimeout(() => status.innerHTML = '', 3000);
-        }
     </script>
 </body>
 </html>
