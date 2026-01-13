@@ -111,13 +111,6 @@
             color: #0c5460;
         }
 
-        .help-text {
-            color: #999;
-            font-size: 12px;
-            margin-top: -12px;
-            margin-bottom: 20px;
-        }
-
         /* Remote Desktop View */
         .remote-desktop {
             display: none;
@@ -229,48 +222,8 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-            cursor: crosshair;
+            cursor: none; /* Hide cursor for true remote desktop feel */
             border-radius: 4px;
-        }
-
-        /* Bottom Toolbar (Minimal) */
-        .bottom-toolbar {
-            background: #313338;
-            padding: 10px 20px;
-            border-top: 1px solid #1e1f22;
-            display: flex;
-            gap: 10px;
-            flex-shrink: 0;
-        }
-
-        .keyboard-input {
-            flex: 1;
-            background: #2b2d31;
-            border: 1px solid #1e1f22;
-            padding: 8px 12px;
-            border-radius: 4px;
-            color: #dcddde;
-            font-size: 14px;
-        }
-
-        .keyboard-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .quick-key {
-            background: #2b2d31;
-            color: #b9bbbe;
-            border: none;
-            padding: 8px 14px;
-            border-radius: 4px;
-            font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .quick-key:hover {
-            background: #404249;
         }
 
         /* Loading Overlay */
@@ -309,7 +262,7 @@
         /* Notification Toast */
         .toast {
             position: fixed;
-            bottom: 80px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
             background: #313338;
@@ -354,12 +307,12 @@
                 <div class="fps-selector">
                     FPS:
                     <select id="refreshRate" onchange="updateRefreshRate()">
-                        <option value="67" selected>15 FPS (Smooth)</option>
+                        <option value="33" selected>30 FPS (Ultra Smooth)</option>
+                        <option value="50">20 FPS</option>
+                        <option value="67">15 FPS</option>
                         <option value="100">10 FPS</option>
-                        <option value="150">~7 FPS</option>
                         <option value="200">5 FPS</option>
                         <option value="500">2 FPS</option>
-                        <option value="1000">1 FPS</option>
                         <option value="0">Manual</option>
                     </select>
                 </div>
@@ -371,22 +324,12 @@
         </div>
 
         <!-- Screen Display -->
-        <div class="screen-wrapper">
-            <img id="screen" src="" alt="Connecting..." />
+        <div class="screen-wrapper" id="screenWrapper">
+            <img id="screen" src="" alt="Connecting..." tabindex="0" />
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="spinner"></div>
                 <span>Loading screen...</span>
             </div>
-        </div>
-
-        <!-- Bottom Toolbar -->
-        <div class="bottom-toolbar">
-            <input type="text" class="keyboard-input" id="keyboardInput" placeholder="Type here to send to remote PC..." />
-            <button class="quick-key" onclick="sendText()">Send</button>
-            <button class="quick-key" onclick="sendKey('enter')">Enter</button>
-            <button class="quick-key" onclick="sendKey('backspace')">⌫</button>
-            <button class="quick-key" onclick="sendKey('tab')">Tab</button>
-            <button class="quick-key" onclick="sendKey('escape')">Esc</button>
         </div>
     </div>
 
@@ -394,8 +337,8 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        // HARDCODED WEBSOCKET URL - Update this if ngrok restarts
-        const WEBSOCKET_URL = 'wss://porticoed-nonhistorical-jazlynn.ngrok-free.dev';
+        // CLOUDFLARE TUNNEL URL - Update this if cloudflared restarts
+        const WEBSOCKET_URL = 'wss://comm-tutorials-corn-combining.trycloudflare.com';
 
         let ws = null;
         let lastX = 0;
@@ -404,10 +347,9 @@
         let isConnected = false;
         let isDragging = false;
         let lastMouseMoveTime = 0;
-        const MOUSE_THROTTLE = 30; // Send mouse position every 30ms for smooth tracking
+        const MOUSE_THROTTLE = 16; // ~60Hz mouse tracking for 30 FPS
 
         function connect() {
-            const wsUrl = WEBSOCKET_URL; // Use hardcoded URL
             const password = document.getElementById('password').value;
 
             if (!password) {
@@ -419,7 +361,7 @@
             document.getElementById('connectBtn').disabled = true;
 
             try {
-                ws = new WebSocket(wsUrl);
+                ws = new WebSocket(WEBSOCKET_URL);
 
                 ws.onopen = () => {
                     console.log('WebSocket connected');
@@ -436,7 +378,7 @@
 
                 ws.onerror = (error) => {
                     console.error('WebSocket error:', error);
-                    showConnectionStatus('Connection error - check URL and make sure server is running', 'error');
+                    showConnectionStatus('Connection error - check that server is running', 'error');
                     document.getElementById('connectBtn').disabled = false;
                 };
 
@@ -477,15 +419,17 @@
                 document.getElementById('remoteDesktop').classList.add('active');
                 showToast('Connected successfully!');
                 document.getElementById('loadingOverlay').classList.add('active');
+                
+                // Focus the screen for keyboard capture
+                document.getElementById('screen').focus();
+                
                 refreshScreen();
                 updateRefreshRate();
             } else if (data.type === 'screenshot') {
                 document.getElementById('screen').src = data.image;
                 document.getElementById('loadingOverlay').classList.remove('active');
             } else if (data.type === 'success') {
-                // Silent success for cleaner UX
-            } else if (data.type === 'command_result') {
-                showToast('Command executed');
+                // Silent success
             } else if (data.type === 'error') {
                 showToast('Error: ' + data.message);
                 if (data.message.includes('Authentication')) {
@@ -497,8 +441,6 @@
         function sendMessage(data) {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify(data));
-            } else {
-                showToast('Not connected');
             }
         }
 
@@ -515,36 +457,22 @@
             }
         }
 
-        function sendMouse(action, x, y) {
+        function sendMouse(action, x, y, amount = 0) {
             sendMessage({
                 type: 'mouse',
                 action: action,
                 x: x,
-                y: y
+                y: y,
+                amount: amount
             });
-            // Quick refresh after mouse action
-            setTimeout(refreshScreen, 50);
         }
 
-        function sendText() {
-            const text = document.getElementById('keyboardInput').value;
-            if (!text) return;
-
+        function sendKey(key, isDown) {
             sendMessage({
                 type: 'keyboard',
-                text: text
+                key: key,
+                keyDown: isDown
             });
-
-            document.getElementById('keyboardInput').value = '';
-            setTimeout(refreshScreen, 100);
-        }
-
-        function sendKey(key) {
-            sendMessage({
-                type: 'keyboard',
-                key: key
-            });
-            setTimeout(refreshScreen, 100);
         }
 
         function showToast(message) {
@@ -562,6 +490,7 @@
         // Handle screen interactions
         document.addEventListener('DOMContentLoaded', function() {
             const screen = document.getElementById('screen');
+            const screenWrapper = document.getElementById('screenWrapper');
             
             // Helper function to get scaled coordinates
             function getScaledCoords(e) {
@@ -575,12 +504,12 @@
                 return { x, y };
             }
             
-            // Mouse move tracking (like AnyDesk - moves cursor as you hover)
-            screen.addEventListener('mousemove', function(e) {
+            // Mouse move tracking
+            screenWrapper.addEventListener('mousemove', function(e) {
                 if (!isConnected) return;
                 
                 const now = Date.now();
-                if (now - lastMouseMoveTime < MOUSE_THROTTLE) return; // Throttle to prevent spam
+                if (now - lastMouseMoveTime < MOUSE_THROTTLE) return;
                 lastMouseMoveTime = now;
                 
                 const { x, y } = getScaledCoords(e);
@@ -590,8 +519,8 @@
                 sendMouse('move', x, y);
             });
             
-            // Mouse down (start of click/drag)
-            screen.addEventListener('mousedown', function(e) {
+            // Mouse down
+            screenWrapper.addEventListener('mousedown', function(e) {
                 if (!isConnected) return;
                 e.preventDefault();
                 
@@ -600,84 +529,96 @@
                 lastX = x;
                 lastY = y;
                 
-                // Send mouse down event
-                if (e.button === 0) { // Left button
+                if (e.button === 0) {
                     sendMouse('mousedown', x, y);
-                } else if (e.button === 2) { // Right button
+                } else if (e.button === 2) {
                     sendMouse('rightmousedown', x, y);
                 }
             });
             
-            // Mouse up (end of click/drag)
-            screen.addEventListener('mouseup', function(e) {
+            // Mouse up
+            screenWrapper.addEventListener('mouseup', function(e) {
                 if (!isConnected) return;
                 e.preventDefault();
                 
                 const { x, y } = getScaledCoords(e);
                 
-                // Send mouse up event
-                if (e.button === 0) { // Left button
+                if (e.button === 0) {
                     sendMouse('mouseup', x, y);
-                } else if (e.button === 2) { // Right button
+                } else if (e.button === 2) {
                     sendMouse('rightmouseup', x, y);
                 }
                 
                 isDragging = false;
-                setTimeout(refreshScreen, 50);
             });
             
             // Prevent context menu
-            screen.addEventListener('contextmenu', function(e) {
+            screenWrapper.addEventListener('contextmenu', function(e) {
                 e.preventDefault();
             });
             
             // Mouse wheel scrolling
-            screen.addEventListener('wheel', function(e) {
+            screenWrapper.addEventListener('wheel', function(e) {
                 if (!isConnected) return;
                 e.preventDefault();
                 
                 const { x, y } = getScaledCoords(e);
-                const scrollAmount = Math.round(e.deltaY / 10); // Adjust sensitivity
+                const scrollAmount = Math.round(e.deltaY / 10);
                 
-                sendMessage({
-                    type: 'mouse',
-                    action: 'scroll',
-                    x: x,
-                    y: y,
-                    amount: -scrollAmount // Negative for natural scrolling
-                });
-                
-                setTimeout(refreshScreen, 50);
+                sendMouse('scroll', x, y, -scrollAmount);
             });
             
-            // Double click
-            screen.addEventListener('dblclick', function(e) {
+            // REAL KEYBOARD PASSTHROUGH
+            document.addEventListener('keydown', function(e) {
                 if (!isConnected) return;
+                if (document.activeElement.tagName === 'INPUT' || 
+                    document.activeElement.tagName === 'SELECT') return;
+                
                 e.preventDefault();
                 
-                const { x, y } = getScaledCoords(e);
-                sendMouse('doubleclick', x, y);
-                setTimeout(refreshScreen, 50);
+                // Send the actual key pressed
+                let key = e.key;
+                
+                // Handle special keys
+                if (key === ' ') key = 'space';
+                else if (key === 'Control') key = 'ctrl';
+                else if (key === 'Alt') key = 'alt';
+                else if (key === 'Shift') key = 'shift';
+                else if (key === 'Meta') key = 'win';
+                else if (key === 'ArrowUp') key = 'up';
+                else if (key === 'ArrowDown') key = 'down';
+                else if (key === 'ArrowLeft') key = 'left';
+                else if (key === 'ArrowRight') key = 'right';
+                
+                sendKey(key, true);
+            });
+            
+            document.addEventListener('keyup', function(e) {
+                if (!isConnected) return;
+                if (document.activeElement.tagName === 'INPUT' || 
+                    document.activeElement.tagName === 'SELECT') return;
+                
+                e.preventDefault();
+                
+                let key = e.key;
+                
+                // Handle special keys
+                if (key === ' ') key = 'space';
+                else if (key === 'Control') key = 'ctrl';
+                else if (key === 'Alt') key = 'alt';
+                else if (key === 'Shift') key = 'shift';
+                else if (key === 'Meta') key = 'win';
+                else if (key === 'ArrowUp') key = 'up';
+                else if (key === 'ArrowDown') key = 'down';
+                else if (key === 'ArrowLeft') key = 'left';
+                else if (key === 'ArrowRight') key = 'right';
+                
+                sendKey(key, false);
             });
 
-            // Keyboard shortcuts
+            // Password field enter key
             document.getElementById('password').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') connect();
-            });
-
-            document.getElementById('keyboardInput').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    sendText();
-                }
-            });
-
-            // Auto-focus keyboard input when in remote desktop
-            document.addEventListener('keydown', function(e) {
-                if (isConnected && document.activeElement.tagName !== 'INPUT' && 
-                    document.activeElement.tagName !== 'SELECT') {
-                    document.getElementById('keyboardInput').focus();
-                }
             });
         });
     </script>
