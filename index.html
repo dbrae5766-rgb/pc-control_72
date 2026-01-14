@@ -222,31 +222,8 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-            cursor: none; /* Hide cursor for true remote desktop feel */
+            cursor: default; /* Show normal cursor */
             border-radius: 4px;
-        }
-
-        /* Custom Mouse Cursor */
-        .custom-cursor {
-            position: absolute;
-            width: 16px;
-            height: 24px;
-            pointer-events: none;
-            z-index: 1000;
-            display: none;
-        }
-
-        .custom-cursor.active {
-            display: block;
-        }
-
-        .cursor-arrow {
-            width: 0;
-            height: 0;
-            border-left: 8px solid white;
-            border-right: 8px solid transparent;
-            border-bottom: 12px solid white;
-            filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.5));
         }
 
         /* Loading Overlay */
@@ -357,9 +334,6 @@
         <!-- Screen Display -->
         <div class="screen-wrapper" id="screenWrapper">
             <img id="screen" src="" alt="Connecting..." tabindex="0" />
-            <div class="custom-cursor" id="customCursor">
-                <div class="cursor-arrow"></div>
-            </div>
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="spinner"></div>
                 <span>Loading screen...</span>
@@ -502,44 +476,18 @@
                 refreshScreen();
                 updateRefreshRate();
             } else if (data.type === 'screenshot') {
-                // Reuse image object instead of creating new one each time
+                // Just display the screenshot - cursor is already in the image
                 const screenImg = document.getElementById('screen');
                 screenImg.src = data.image;
                 document.getElementById('loadingOverlay').classList.remove('active');
-                
-                // Update cursor to actual host position
-                if (data.mouseX !== undefined && data.mouseY !== undefined) {
-                    syncCursorToHostPosition(data.mouseX, data.mouseY, data.screenWidth, data.screenHeight);
-                }
             } else if (data.type === 'success') {
-                // Sync cursor position if host returns actual position
-                if (data.mouseX !== undefined && data.mouseY !== undefined) {
-                    syncCursorToHostPosition(data.mouseX, data.mouseY);
-                }
+                // Success - no cursor sync needed since cursor is in screenshot
             } else if (data.type === 'error') {
                 showToast('Error: ' + data.message);
                 if (data.message.includes('Authentication')) {
                     disconnect();
                 }
             }
-        }
-
-        function syncCursorToHostPosition(hostX, hostY, screenshotWidth, screenshotHeight) {
-            const screen = document.getElementById('screen');
-            const customCursor = document.getElementById('customCursor');
-            
-            // Host sends coordinates already scaled to screenshot size
-            // We just need to scale to display size using the screenshot dimensions
-            const rect = screen.getBoundingClientRect();
-            const scaleX = rect.width / screenshotWidth;
-            const scaleY = rect.height / screenshotHeight;
-            
-            const displayX = hostX * scaleX;
-            const displayY = hostY * scaleY;
-            
-            customCursor.style.left = displayX + 'px';
-            customCursor.style.top = displayY + 'px';
-            customCursor.classList.add('active'); // Make cursor visible
         }
 
         function sendMessage(data) {
