@@ -226,6 +226,31 @@
             border-radius: 4px;
         }
 
+        /* Custom Mouse Cursor */
+        .custom-cursor {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        .custom-cursor.active {
+            display: block;
+        }
+
+        .cursor-arrow {
+            width: 0;
+            height: 0;
+            border-left: 10px solid white;
+            border-right: 10px solid transparent;
+            border-top: 10px solid white;
+            border-bottom: 10px solid transparent;
+            filter: drop-shadow(0 0 2px rgba(0,0,0,0.8));
+            transform: rotate(-45deg);
+        }
+
         /* Loading Overlay */
         .loading-overlay {
             position: absolute;
@@ -326,6 +351,9 @@
         <!-- Screen Display -->
         <div class="screen-wrapper" id="screenWrapper">
             <img id="screen" src="" alt="Connecting..." tabindex="0" />
+            <div class="custom-cursor" id="customCursor">
+                <div class="cursor-arrow"></div>
+            </div>
             <div class="loading-overlay" id="loadingOverlay">
                 <div class="spinner"></div>
                 <span>Loading screen...</span>
@@ -347,7 +375,7 @@
         let isConnected = false;
         let isDragging = false;
         let lastMouseMoveTime = 0;
-        const MOUSE_THROTTLE = 16; // ~60Hz mouse tracking for 30 FPS
+        const MOUSE_THROTTLE = 10; // 10ms = ~100Hz for very responsive tracking
 
         function connect() {
             const password = document.getElementById('password').value;
@@ -508,6 +536,15 @@
             screenWrapper.addEventListener('mousemove', function(e) {
                 if (!isConnected) return;
                 
+                // Update visual cursor position immediately
+                const customCursor = document.getElementById('customCursor');
+                const rect = screen.getBoundingClientRect();
+                
+                customCursor.style.left = (e.clientX - rect.left) + 'px';
+                customCursor.style.top = (e.clientY - rect.top) + 'px';
+                customCursor.classList.add('active');
+                
+                // Throttle remote commands
                 const now = Date.now();
                 if (now - lastMouseMoveTime < MOUSE_THROTTLE) return;
                 lastMouseMoveTime = now;
