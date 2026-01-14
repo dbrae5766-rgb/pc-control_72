@@ -457,13 +457,34 @@
                 document.getElementById('screen').src = data.image;
                 document.getElementById('loadingOverlay').classList.remove('active');
             } else if (data.type === 'success') {
-                // Silent success
+                // Sync cursor position if host returns actual position
+                if (data.mouseX !== undefined && data.mouseY !== undefined) {
+                    syncCursorToHostPosition(data.mouseX, data.mouseY);
+                }
             } else if (data.type === 'error') {
                 showToast('Error: ' + data.message);
                 if (data.message.includes('Authentication')) {
                     disconnect();
                 }
             }
+        }
+
+        function syncCursorToHostPosition(hostX, hostY) {
+            // Convert host screen coordinates to client display coordinates
+            const screen = document.getElementById('screen');
+            const customCursor = document.getElementById('customCursor');
+            
+            if (!screen.naturalWidth || !screen.naturalHeight) return;
+            
+            const rect = screen.getBoundingClientRect();
+            const scaleX = rect.width / screen.naturalWidth;
+            const scaleY = rect.height / screen.naturalHeight;
+            
+            const displayX = hostX * scaleX;
+            const displayY = hostY * scaleY;
+            
+            customCursor.style.left = displayX + 'px';
+            customCursor.style.top = displayY + 'px';
         }
 
         function sendMessage(data) {
