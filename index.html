@@ -509,7 +509,7 @@
                 
                 // Update cursor to actual host position
                 if (data.mouseX !== undefined && data.mouseY !== undefined) {
-                    syncCursorToHostPosition(data.mouseX, data.mouseY);
+                    syncCursorToHostPosition(data.mouseX, data.mouseY, data.screenWidth, data.screenHeight);
                 }
             } else if (data.type === 'success') {
                 // Sync cursor position if host returns actual position
@@ -524,17 +524,15 @@
             }
         }
 
-        function syncCursorToHostPosition(hostX, hostY) {
+        function syncCursorToHostPosition(hostX, hostY, screenshotWidth, screenshotHeight) {
             const screen = document.getElementById('screen');
             const customCursor = document.getElementById('customCursor');
             
-            if (!screen.naturalWidth || !screen.naturalHeight) return;
-            
-            // Host already sends coordinates scaled to screenshot size
-            // Just scale to display size
+            // Host sends coordinates already scaled to screenshot size
+            // We just need to scale to display size using the screenshot dimensions
             const rect = screen.getBoundingClientRect();
-            const scaleX = rect.width / screen.naturalWidth;
-            const scaleY = rect.height / screen.naturalHeight;
+            const scaleX = rect.width / screenshotWidth;
+            const scaleY = rect.height / screenshotHeight;
             
             const displayX = hostX * scaleX;
             const displayY = hostY * scaleY;
