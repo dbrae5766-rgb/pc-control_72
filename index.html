@@ -525,12 +525,13 @@
         }
 
         function syncCursorToHostPosition(hostX, hostY) {
-            // Convert host screen coordinates to client display coordinates
             const screen = document.getElementById('screen');
             const customCursor = document.getElementById('customCursor');
             
             if (!screen.naturalWidth || !screen.naturalHeight) return;
             
+            // Host already sends coordinates scaled to screenshot size
+            // Just scale to display size
             const rect = screen.getBoundingClientRect();
             const scaleX = rect.width / screen.naturalWidth;
             const scaleY = rect.height / screen.naturalHeight;
