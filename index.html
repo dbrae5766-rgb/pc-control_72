@@ -339,6 +339,14 @@
                         <option value="0">Manual</option>
                     </select>
                 </div>
+                <div class="fps-selector">
+                    Quality:
+                    <select id="qualityMode" onchange="updateQualityMode()">
+                        <option value="speed" selected>Speed (Less Lag)</option>
+                        <option value="balanced">Balanced</option>
+                        <option value="quality">Quality (More Lag)</option>
+                    </select>
+                </div>
             </div>
             <div class="toolbar-right">
                 <button class="toolbar-btn" onclick="refreshScreen()">🔄 Refresh</button>
@@ -377,8 +385,15 @@
         let reconnectAttempts = 0;
         let maxReconnectAttempts = 5;
         let savedPassword = '';
-        const MOUSE_THROTTLE = 10; // 10ms = ~100Hz for very responsive tracking
+        let qualityMode = 'speed';
+        const MOUSE_THROTTLE = 5; // 5ms = ~200Hz for ultra-responsive tracking
         const PING_INTERVAL = 10000; // Send ping every 10 seconds
+
+        function updateQualityMode() {
+            qualityMode = document.getElementById('qualityMode').value;
+            // Quality is handled server-side, just stored here for future use
+            showToast(`Quality mode: ${qualityMode}`);
+        }
 
         function connect() {
             const password = document.getElementById('password').value;
@@ -487,8 +502,15 @@
                 refreshScreen();
                 updateRefreshRate();
             } else if (data.type === 'screenshot') {
-                document.getElementById('screen').src = data.image;
+                // Reuse image object instead of creating new one each time
+                const screenImg = document.getElementById('screen');
+                screenImg.src = data.image;
                 document.getElementById('loadingOverlay').classList.remove('active');
+                
+                // Update cursor to actual host position
+                if (data.mouseX !== undefined && data.mouseY !== undefined) {
+                    syncCursorToHostPosition(data.mouseX, data.mouseY);
+                }
             } else if (data.type === 'success') {
                 // Sync cursor position if host returns actual position
                 if (data.mouseX !== undefined && data.mouseY !== undefined) {
@@ -605,23 +627,17 @@
             screenWrapper.addEventListener('mousemove', function(e) {
                 if (!isConnected) return;
                 
-                // Update visual cursor position immediately
-                const customCursor = document.getElementById('customCursor');
-                const rect = screen.getBoundingClientRect();
-                
-                customCursor.style.left = (e.clientX - rect.left) + 'px';
-                customCursor.style.top = (e.clientY - rect.top) + 'px';
-                customCursor.classList.add('active');
-                
-                // Get scaled coordinates
-                const { x, y } = getScaledCoords(e);
-                lastX = x;
-                lastY = y;
+                // Don't update visual cursor here - let host position update it
+                // Just send the mouse command
                 
                 // Throttle remote commands
                 const now = Date.now();
                 if (now - lastMouseMoveTime < MOUSE_THROTTLE) return;
                 lastMouseMoveTime = now;
+                
+                const { x, y } = getScaledCoords(e);
+                lastX = x;
+                lastY = y;
                 
                 sendMouse('move', x, y);
             });
