@@ -302,26 +302,6 @@
         .toast.show {
             opacity: 1;
         }
-
-        /* Debug Overlay */
-        .debug-overlay {
-            position: fixed;
-            top: 60px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            color: #0f0;
-            padding: 15px;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-            line-height: 1.6;
-            display: none;
-            z-index: 2000;
-        }
-
-        .debug-overlay.active {
-            display: block;
-        }
     </style>
 </head>
 <body>
@@ -350,7 +330,7 @@
                 <div class="fps-selector">
                     FPS:
                     <select id="refreshRate" onchange="updateRefreshRate()">
-                        <option value="4" selected>30 FPS (Ultra Smooth)</option>
+                        <option value="33" selected>30 FPS (Ultra Smooth)</option>
                         <option value="50">20 FPS</option>
                         <option value="67">15 FPS</option>
                         <option value="100">10 FPS</option>
@@ -358,23 +338,6 @@
                         <option value="500">2 FPS</option>
                         <option value="0">Manual</option>
                     </select>
-                </div>
-                <div class="fps-selector">
-                    Cursor Offset X: <input type="number" id="offsetX" value="0" style="width: 50px; padding: 4px; background: #2b2d31; color: #b9bbbe; border: 1px solid #1e1f22; border-radius: 4px;" onchange="updateCursorOffset()" />
-                    Y: <input type="number" id="offsetY" value="0" style="width: 50px; padding: 4px; background: #2b2d31; color: #b9bbbe; border: 1px solid #1e1f22; border-radius: 4px;" onchange="updateCursorOffset()" />
-                </div>
-                <div class="fps-selector">
-                    Scale X: <input type="number" id="scaleX" value="1.0" step="0.01" style="width: 60px; padding: 4px; background: #2b2d31; color: #b9bbbe; border: 1px solid #1e1f22; border-radius: 4px;" onchange="updateScaleFactors()" />
-                    Y: <input type="number" id="scaleY" value="1.0" step="0.01" style="width: 60px; padding: 4px; background: #2b2d31; color: #b9bbbe; border: 1px solid #1e1f22; border-radius: 4px;" onchange="updateScaleFactors()" />
-                </div>
-                <div class="fps-selector">
-                    <button class="toolbar-btn" id="calibrateBtn" onclick="startCalibration()">Auto Calibrate</button>
-                </div>
-                <div class="fps-selector">
-                    <label style="display: inline; cursor: pointer;">
-                        <input type="checkbox" id="debugMode" onchange="toggleDebugMode()" />
-                        Debug Mode
-                    </label>
                 </div>
             </div>
             <div class="toolbar-right">
@@ -399,16 +362,6 @@
     <!-- Toast Notification -->
     <div class="toast" id="toast"></div>
 
-    <!-- Debug Overlay -->
-    <div class="debug-overlay" id="debugOverlay">
-        <div>Screen Size: <span id="debugScreenSize">-</span></div>
-        <div>Display Size: <span id="debugDisplaySize">-</span></div>
-        <div>Scale: <span id="debugScale">-</span></div>
-        <div>Mouse Pos (Client): <span id="debugClientPos">-</span></div>
-        <div>Mouse Pos (Scaled): <span id="debugScaledPos">-</span></div>
-        <div>Host Mouse Pos: <span id="debugHostPos">-</span></div>
-    </div>
-
     <script>
         // CLOUDFLARE TUNNEL URL - Update this if cloudflared restarts
         const WEBSOCKET_URL = 'wss://comm-tutorials-corn-combining.trycloudflare.com';
@@ -420,101 +373,12 @@
         let isConnected = false;
         let isDragging = false;
         let lastMouseMoveTime = 0;
-        let cursorOffsetX = 0;
-        let cursorOffsetY = 0;
-        let debugMode = false;
-        let scaleFactorX = 1.0;
-        let scaleFactorY = 1.0;
-        let calibrationMode = false;
-        let calibrationPoints = [];
+        let pingInterval = null;
+        let reconnectAttempts = 0;
+        let maxReconnectAttempts = 5;
+        let savedPassword = '';
         const MOUSE_THROTTLE = 10; // 10ms = ~100Hz for very responsive tracking
-
-        function updateCursorOffset() {
-            cursorOffsetX = parseInt(document.getElementById('offsetX').value) || 0;
-            cursorOffsetY = parseInt(document.getElementById('offsetY').value) || 0;
-        }
-
-        function updateScaleFactors() {
-            scaleFactorX = parseFloat(document.getElementById('scaleX').value) || 1.0;
-            scaleFactorY = parseFloat(document.getElementById('scaleY').value) || 1.0;
-        }
-
-        function startCalibration() {
-            calibrationMode = true;
-            calibrationPoints = [];
-            showToast('Calibration: Click top-left corner of screen');
-            document.getElementById('calibrateBtn').textContent = 'Cancel Calibration';
-            document.getElementById('calibrateBtn').onclick = cancelCalibration;
-        }
-
-        function cancelCalibration() {
-            calibrationMode = false;
-            calibrationPoints = [];
-            document.getElementById('calibrateBtn').textContent = 'Auto Calibrate';
-            document.getElementById('calibrateBtn').onclick = startCalibration;
-        }
-
-        function processCalibrationPoint(clientX, clientY, hostX, hostY) {
-            calibrationPoints.push({ clientX, clientY, hostX, hostY });
-            
-            if (calibrationPoints.length === 1) {
-                showToast('Calibration: Click bottom-right corner of screen');
-            } else if (calibrationPoints.length === 2) {
-                // Calculate scale factors from two points
-                const p1 = calibrationPoints[0];
-                const p2 = calibrationPoints[1];
-                
-                const clientDiffX = p2.clientX - p1.clientX;
-                const clientDiffY = p2.clientY - p1.clientY;
-                const hostDiffX = p2.hostX - p1.hostX;
-                const hostDiffY = p2.hostY - p1.hostY;
-                
-                if (clientDiffX !== 0) {
-                    scaleFactorX = hostDiffX / clientDiffX;
-                }
-                if (clientDiffY !== 0) {
-                    scaleFactorY = hostDiffY / clientDiffY;
-                }
-                
-                // Update UI
-                document.getElementById('scaleX').value = scaleFactorX.toFixed(4);
-                document.getElementById('scaleY').value = scaleFactorY.toFixed(4);
-                
-                showToast(`Calibration complete! Scale: ${scaleFactorX.toFixed(3)}x${scaleFactorY.toFixed(3)}`);
-                cancelCalibration();
-            }
-        }
-
-        function toggleDebugMode() {
-            debugMode = document.getElementById('debugMode').checked;
-            const overlay = document.getElementById('debugOverlay');
-            if (debugMode) {
-                overlay.classList.add('active');
-            } else {
-                overlay.classList.remove('active');
-            }
-        }
-
-        function updateDebugInfo(clientX, clientY, scaledX, scaledY) {
-            if (!debugMode) return;
-            
-            const screen = document.getElementById('screen');
-            const rect = screen.getBoundingClientRect();
-            
-            const baseScaleX = screen.naturalWidth / rect.width;
-            const baseScaleY = screen.naturalHeight / rect.height;
-            
-            document.getElementById('debugScreenSize').textContent = 
-                `${screen.naturalWidth}x${screen.naturalHeight}`;
-            document.getElementById('debugDisplaySize').textContent = 
-                `${Math.round(rect.width)}x${Math.round(rect.height)}`;
-            document.getElementById('debugScale').textContent = 
-                `Base: ${baseScaleX.toFixed(3)}x${baseScaleY.toFixed(3)} | Custom: ${scaleFactorX.toFixed(3)}x${scaleFactorY.toFixed(3)}`;
-            document.getElementById('debugClientPos').textContent = 
-                `${Math.round(clientX)}, ${Math.round(clientY)}`;
-            document.getElementById('debugScaledPos').textContent = 
-                `${scaledX}, ${scaledY}`;
-        }
+        const PING_INTERVAL = 10000; // Send ping every 10 seconds
 
         function connect() {
             const password = document.getElementById('password').value;
@@ -524,6 +388,11 @@
                 return;
             }
 
+            savedPassword = password; // Save for reconnection
+            attemptConnection();
+        }
+
+        function attemptConnection() {
             showConnectionStatus('Connecting...', 'info');
             document.getElementById('connectBtn').disabled = true;
 
@@ -532,10 +401,19 @@
 
                 ws.onopen = () => {
                     console.log('WebSocket connected');
+                    reconnectAttempts = 0; // Reset on successful connection
                     ws.send(JSON.stringify({
                         type: 'auth',
-                        password: password
+                        password: savedPassword
                     }));
+                    
+                    // Start keep-alive ping
+                    if (pingInterval) clearInterval(pingInterval);
+                    pingInterval = setInterval(() => {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ type: 'ping' }));
+                        }
+                    }, PING_INTERVAL);
                 };
 
                 ws.onmessage = (event) => {
@@ -552,18 +430,29 @@
                 ws.onclose = () => {
                     console.log('WebSocket disconnected');
                     isConnected = false;
-                    showToast('Disconnected from PC');
                     
+                    if (pingInterval) {
+                        clearInterval(pingInterval);
+                    }
                     if (refreshInterval) {
                         clearInterval(refreshInterval);
                     }
 
-                    // Return to connection screen
-                    setTimeout(() => {
-                        document.getElementById('connectionScreen').style.display = 'flex';
-                        document.getElementById('remoteDesktop').classList.remove('active');
-                        document.getElementById('connectBtn').disabled = false;
-                    }, 1000);
+                    // Attempt to reconnect if was previously connected
+                    if (reconnectAttempts < maxReconnectAttempts && savedPassword) {
+                        reconnectAttempts++;
+                        showToast(`Reconnecting... (${reconnectAttempts}/${maxReconnectAttempts})`);
+                        setTimeout(attemptConnection, 2000 * reconnectAttempts); // Exponential backoff
+                    } else {
+                        showToast('Disconnected from PC');
+                        // Return to connection screen
+                        setTimeout(() => {
+                            document.getElementById('connectionScreen').style.display = 'flex';
+                            document.getElementById('remoteDesktop').classList.remove('active');
+                            document.getElementById('connectBtn').disabled = false;
+                            reconnectAttempts = 0;
+                        }, 1000);
+                    }
                 };
 
             } catch (error) {
@@ -573,6 +462,11 @@
         }
 
         function disconnect() {
+            reconnectAttempts = maxReconnectAttempts; // Prevent auto-reconnect
+            savedPassword = ''; // Clear saved password
+            if (pingInterval) {
+                clearInterval(pingInterval);
+            }
             if (ws) {
                 ws.close();
             }
@@ -599,17 +493,6 @@
                 // Sync cursor position if host returns actual position
                 if (data.mouseX !== undefined && data.mouseY !== undefined) {
                     syncCursorToHostPosition(data.mouseX, data.mouseY);
-                    
-                    // Process calibration if in calibration mode
-                    if (calibrationMode && window.pendingCalibPoint) {
-                        processCalibrationPoint(
-                            window.pendingCalibPoint.clientX,
-                            window.pendingCalibPoint.clientY,
-                            data.mouseX,
-                            data.mouseY
-                        );
-                        window.pendingCalibPoint = null;
-                    }
                 }
             } else if (data.type === 'error') {
                 showToast('Error: ' + data.message);
@@ -620,11 +503,6 @@
         }
 
         function syncCursorToHostPosition(hostX, hostY) {
-            // Update debug info
-            if (debugMode) {
-                document.getElementById('debugHostPos').textContent = `${hostX}, ${hostY}`;
-            }
-            
             // Convert host screen coordinates to client display coordinates
             const screen = document.getElementById('screen');
             const customCursor = document.getElementById('customCursor');
@@ -635,8 +513,8 @@
             const scaleX = rect.width / screen.naturalWidth;
             const scaleY = rect.height / screen.naturalHeight;
             
-            const displayX = hostX * scaleX + cursorOffsetX;
-            const displayY = hostY * scaleY + cursorOffsetY;
+            const displayX = hostX * scaleX;
+            const displayY = hostY * scaleY;
             
             customCursor.style.left = displayX + 'px';
             customCursor.style.top = displayY + 'px';
@@ -708,17 +586,13 @@
                 const clampedX = Math.max(0, Math.min(relativeX, rect.width));
                 const clampedY = Math.max(0, Math.min(relativeY, rect.height));
                 
-                // Calculate base scale factors
-                const baseScaleX = screen.naturalWidth / rect.width;
-                const baseScaleY = screen.naturalHeight / rect.height;
-                
-                // Apply custom scale correction
-                const finalScaleX = baseScaleX * scaleFactorX;
-                const finalScaleY = baseScaleY * scaleFactorY;
+                // Calculate scale factors
+                const scaleX = screen.naturalWidth / rect.width;
+                const scaleY = screen.naturalHeight / rect.height;
                 
                 // Scale to actual screen coordinates
-                const x = Math.round(clampedX * finalScaleX);
-                const y = Math.round(clampedY * finalScaleY);
+                const x = Math.round(clampedX * scaleX);
+                const y = Math.round(clampedY * scaleY);
                 
                 // Clamp to screen dimensions
                 const finalX = Math.max(0, Math.min(x, screen.naturalWidth - 1));
@@ -731,21 +605,18 @@
             screenWrapper.addEventListener('mousemove', function(e) {
                 if (!isConnected) return;
                 
-                // Update visual cursor position immediately with offset
+                // Update visual cursor position immediately
                 const customCursor = document.getElementById('customCursor');
                 const rect = screen.getBoundingClientRect();
                 
-                customCursor.style.left = (e.clientX - rect.left + cursorOffsetX) + 'px';
-                customCursor.style.top = (e.clientY - rect.top + cursorOffsetY) + 'px';
+                customCursor.style.left = (e.clientX - rect.left) + 'px';
+                customCursor.style.top = (e.clientY - rect.top) + 'px';
                 customCursor.classList.add('active');
                 
                 // Get scaled coordinates
                 const { x, y } = getScaledCoords(e);
                 lastX = x;
                 lastY = y;
-                
-                // Update debug info
-                updateDebugInfo(e.clientX - rect.left, e.clientY - rect.top, x, y);
                 
                 // Throttle remote commands
                 const now = Date.now();
@@ -760,21 +631,10 @@
                 if (!isConnected) return;
                 e.preventDefault();
                 
+                isDragging = true;
                 const { x, y } = getScaledCoords(e);
                 lastX = x;
                 lastY = y;
-                
-                // If in calibration mode, store the client position
-                if (calibrationMode) {
-                    const rect = screen.getBoundingClientRect();
-                    const calibClientX = e.clientX - rect.left;
-                    const calibClientY = e.clientY - rect.top;
-                    
-                    // Store for later when we get host response
-                    window.pendingCalibPoint = { clientX: calibClientX, clientY: calibClientY };
-                }
-                
-                isDragging = true;
                 
                 if (e.button === 0) {
                     sendMouse('mousedown', x, y);
