@@ -354,18 +354,23 @@
         let refreshInterval = null;
         let isConnected = false;
         let isDragging = false;
-        let lastMouseMoveTime = 0;
         let pingInterval = null;
         let reconnectAttempts = 0;
         let maxReconnectAttempts = 5;
         let savedPassword = '';
         let qualityMode = 'speed';
-        const MOUSE_THROTTLE = 5; // 5ms = ~200Hz for ultra-responsive tracking
-        const PING_INTERVAL = 10000; // Send ping every 10 seconds
+        let pendingMouseMove = null;
+        const PING_INTERVAL = 10000;
 
         function updateQualityMode() {
             qualityMode = document.getElementById('qualityMode').value;
-            // Quality is handled server-side, just stored here for future use
+            
+            // Send quality preference to server
+            sendMessage({
+                type: 'set_quality',
+                quality: qualityMode
+            });
+            
             showToast(`Quality mode: ${qualityMode}`);
         }
 
@@ -506,6 +511,10 @@
             const rate = parseInt(document.getElementById('refreshRate').value);
             if (rate > 0) {
                 refreshInterval = setInterval(refreshScreen, rate);
+                const fps = Math.round(1000 / rate);
+                showToast(`FPS set to ${fps}`);
+            } else {
+                showToast('Manual refresh mode');
             }
         }
 
@@ -556,37 +565,38 @@
                 const clampedX = Math.max(0, Math.min(relativeX, rect.width));
                 const clampedY = Math.max(0, Math.min(relativeY, rect.height));
                 
+                // Use naturalWidth if available, otherwise use display dimensions
+                const naturalWidth = screen.naturalWidth || 1280;
+                const naturalHeight = screen.naturalHeight || 720;
+                
                 // Calculate scale factors
-                const scaleX = screen.naturalWidth / rect.width;
-                const scaleY = screen.naturalHeight / rect.height;
+                const scaleX = naturalWidth / rect.width;
+                const scaleY = naturalHeight / rect.height;
                 
                 // Scale to actual screen coordinates
                 const x = Math.round(clampedX * scaleX);
                 const y = Math.round(clampedY * scaleY);
                 
                 // Clamp to screen dimensions
-                const finalX = Math.max(0, Math.min(x, screen.naturalWidth - 1));
-                const finalY = Math.max(0, Math.min(y, screen.naturalHeight - 1));
+                const finalX = Math.max(0, Math.min(x, naturalWidth - 1));
+                const finalY = Math.max(0, Math.min(y, naturalHeight - 1));
                 
                 return { x: finalX, y: finalY };
             }
             
-            // Mouse move tracking
+            // Mouse move tracking - INSTANT, NO THROTTLE
             screenWrapper.addEventListener('mousemove', function(e) {
                 if (!isConnected) return;
                 
-                // Don't update visual cursor here - let host position update it
-                // Just send the mouse command
-                
-                // Throttle remote commands
-                const now = Date.now();
-                if (now - lastMouseMoveTime < MOUSE_THROTTLE) return;
-                lastMouseMoveTime = now;
-                
                 const { x, y } = getScaledCoords(e);
+                
+                // Only send if position actually changed
+                if (x === lastX && y === lastY) return;
+                
                 lastX = x;
                 lastY = y;
                 
+                // Send immediately - no throttle
                 sendMouse('move', x, y);
             });
             
