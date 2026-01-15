@@ -12,8 +12,8 @@
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #2b2d31;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f0f0f0;
             overflow: hidden;
             height: 100vh;
         }
@@ -24,91 +24,101 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #e0e0e0;
         }
 
         .connection-box {
-            background: white;
-            padding: 40px;
-            border-radius: 15px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            max-width: 450px;
+            background: #ffffff;
+            padding: 50px;
+            border-radius: 8px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+            max-width: 400px;
             width: 90%;
+            border: 1px solid #d0d0d0;
         }
 
         .connection-box h2 {
-            margin-bottom: 25px;
-            color: #333;
+            margin-bottom: 30px;
+            color: #2a2a2a;
             text-align: center;
+            font-size: 24px;
+            font-weight: 600;
         }
 
         .connection-box label {
             display: block;
             margin-bottom: 8px;
-            color: #555;
-            font-weight: 600;
+            color: #5a5a5a;
+            font-weight: 500;
             font-size: 14px;
         }
 
         .connection-box input {
             width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 14px;
+            padding: 14px;
+            border: 1px solid #c0c0c0;
+            border-radius: 4px;
+            font-size: 16px;
             margin-bottom: 20px;
             font-family: inherit;
+            background: #fafafa;
+            transition: border 0.2s;
         }
 
         .connection-box input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #888888;
+            background: #ffffff;
         }
 
         .connection-box button {
             width: 100%;
-            padding: 14px;
-            background: #667eea;
+            padding: 16px;
+            background: #3a3a3a;
             color: white;
             border: none;
-            border-radius: 8px;
+            border-radius: 4px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s;
         }
 
         .connection-box button:hover {
-            background: #5568d3;
+            background: #2a2a2a;
         }
 
         .connection-box button:disabled {
-            background: #ccc;
+            background: #c0c0c0;
             cursor: not-allowed;
         }
 
         .status {
             padding: 12px;
-            border-radius: 8px;
+            border-radius: 4px;
             margin-bottom: 20px;
             text-align: center;
-            font-weight: 600;
+            font-weight: 500;
             font-size: 14px;
+            border: 1px solid;
         }
 
         .status.success {
-            background: #d4edda;
-            color: #155724;
+            background: #f5f5f5;
+            color: #2a2a2a;
+            border-color: #d0d0d0;
         }
 
         .status.error {
-            background: #f8d7da;
-            color: #721c24;
+            background: #f5f5f5;
+            color: #4a4a4a;
+            border-color: #b0b0b0;
         }
 
         .status.info {
-            background: #d1ecf1;
-            color: #0c5460;
+            background: #f5f5f5;
+            color: #2a2a2a;
+            border-color: #d0d0d0;
         }
 
         /* Remote Desktop View */
@@ -116,7 +126,7 @@
             display: none;
             width: 100vw;
             height: 100vh;
-            background: #1e1f22;
+            background: #1a1a1a;
             flex-direction: column;
         }
 
@@ -126,85 +136,91 @@
 
         /* Top Toolbar */
         .toolbar {
-            background: #313338;
-            padding: 12px 20px;
+            background: #2a2a2a;
+            padding: 14px 24px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-bottom: 1px solid #1e1f22;
+            border-bottom: 1px solid #3a3a3a;
             flex-shrink: 0;
         }
 
         .toolbar-left {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 24px;
         }
 
         .connection-indicator {
             display: flex;
             align-items: center;
-            gap: 8px;
-            color: #b9bbbe;
-            font-size: 13px;
+            gap: 10px;
+            color: #d0d0d0;
+            font-size: 14px;
+            font-weight: 500;
         }
 
         .connection-dot {
-            width: 10px;
-            height: 10px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            background: #3ba55c;
+            background: #888888;
             animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
+            50% { opacity: 0.5; }
         }
 
         .fps-selector {
-            color: #b9bbbe;
-            font-size: 13px;
+            color: #b0b0b0;
+            font-size: 14px;
+            font-weight: 500;
         }
 
         .fps-selector select {
-            background: #2b2d31;
-            color: #b9bbbe;
-            border: 1px solid #1e1f22;
-            padding: 6px 10px;
+            background: #3a3a3a;
+            color: #d0d0d0;
+            border: 1px solid #4a4a4a;
+            padding: 6px 12px;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 14px;
             margin-left: 8px;
             cursor: pointer;
+            font-weight: 400;
         }
 
         .toolbar-right {
             display: flex;
-            gap: 10px;
+            gap: 12px;
         }
 
         .toolbar-btn {
-            background: #2b2d31;
-            color: #b9bbbe;
-            border: none;
-            padding: 8px 16px;
+            background: #3a3a3a;
+            color: #d0d0d0;
+            border: 1px solid #4a4a4a;
+            padding: 8px 18px;
             border-radius: 4px;
-            font-size: 13px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .toolbar-btn:hover {
-            background: #404249;
+            background: #4a4a4a;
+            border-color: #5a5a5a;
         }
 
         .toolbar-btn.disconnect {
-            background: #da373c;
-            color: white;
+            background: #5a5a5a;
+            color: #ffffff;
+            border-color: #6a6a6a;
         }
 
         .toolbar-btn.disconnect:hover {
-            background: #c12c31;
+            background: #6a6a6a;
         }
 
         /* Screen Container */
@@ -214,7 +230,7 @@
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            background: #1e1f22;
+            background: #1a1a1a;
             position: relative;
         }
 
@@ -222,8 +238,8 @@
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-            cursor: default; /* Show normal cursor */
-            border-radius: 4px;
+            cursor: default;
+            border-radius: 0;
         }
 
         /* Loading Overlay */
@@ -233,11 +249,11 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(30, 31, 34, 0.8);
+            background: rgba(26, 26, 26, 0.9);
             display: none;
             align-items: center;
             justify-content: center;
-            color: #b9bbbe;
+            color: #c0c0c0;
             font-size: 16px;
         }
 
@@ -248,8 +264,8 @@
         .spinner {
             width: 40px;
             height: 40px;
-            border: 4px solid #404249;
-            border-top-color: #667eea;
+            border: 3px solid #3a3a3a;
+            border-top-color: #888888;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin-right: 15px;
@@ -265,15 +281,17 @@
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: #313338;
-            color: #dcddde;
-            padding: 12px 20px;
-            border-radius: 8px;
+            background: #3a3a3a;
+            color: #e0e0e0;
+            padding: 14px 24px;
+            border-radius: 4px;
             font-size: 14px;
+            font-weight: 500;
             opacity: 0;
             transition: opacity 0.3s;
             pointer-events: none;
             z-index: 1000;
+            border: 1px solid #4a4a4a;
         }
 
         .toast.show {
@@ -285,7 +303,7 @@
     <!-- Connection Screen -->
     <div class="connection-screen" id="connectionScreen">
         <div class="connection-box">
-            <h2>🔗 Connect to Your PC</h2>
+            <h2>⬇️ Connect ⬇️</h2>
             <div id="connectionStatus"></div>
             
             <label>Password</label>
